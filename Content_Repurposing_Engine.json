@@ -1,0 +1,177 @@
+{
+  "name": "Content Repurposing Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://youtube-transcript.ai/transcript/{{ ($json.chatInput || $json.message?.text || '').match(/(?:youtu\\.be\\/|v=)([\\w-]{11})/)?.[1] || '' }}.txt",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        208,
+        80
+      ],
+      "id": "b0051c11-bc5d-4399-bc2a-d06f6d0fd15f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        16,
+        16
+      ],
+      "id": "af1d1a8a-6d0b-44ec-86b4-6d5ef501ad29",
+      "name": "When chat message received"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert short-form video creator and social media strategist.\n\nHere is the transcript of a YouTube video:\n\"\"\"\n{{ $json.data }}\n\"\"\"\n\nCreate a high-impact Content Repurposing Pack formatted in clean Markdown with the following sections:\n\n1. 🎯 **Core Takeaway (1-2 sentences)**: The single most valuable insight from this video.\n\n2. 🎬 **Top 2 Short-Form / Reel Video Concepts**:\nFor each concept provide:\n- **Hook (0-3s)**: High-retention opening line + on-screen visual action.\n- **Body & Script**: 30-45 second spoken script covering the key point with visual cues in brackets [like this].\n- **Call to Action (CTA)**: Strong closing line.\n\n3. 💼 **LinkedIn Post**:\n- Punchy line 1 hook.\n- 3-5 scannable bullet points detailing the tactical steps or lessons.\n- Question at the end to drive engagement.\n\nOutput only the formatted content package without generic intros or outros.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        80
+      ],
+      "id": "3ba9279b-4cfa-46ba-a736-323675833be2",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        240
+      ],
+      "id": "9195053d-95a1-412c-ad2e-0856a5acbb43",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        80
+      ],
+      "id": "b2d5ee4b-3154-4b23-8edb-80e387ea2542",
+      "name": "Send a text message",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        16,
+        192
+      ],
+      "id": "43e3855f-d5a7-44ab-abc0-99e5f241ea68",
+      "name": "Telegram Trigger",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

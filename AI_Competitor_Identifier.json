@@ -1,0 +1,316 @@
+{
+  "name": "AI Competitor Identifier",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a competitive intelligence analyst. Analyze the following webpage content:\n\n<content>\n{{ $json.data }}\n</content>\n\nExtract the required fields and return ONLY a valid, raw JSON object. Do not include markdown codeblocks (no ```json), explanations, or preamble.\n\nRequired JSON Schema:\n{\n  \"company_or_site_name\": \"string\",\n  \"one_sentence_pitch\": \"string\",\n  \"key_features_or_news\": [\"point 1\", \"point 2\", \"point 3\"],\n  \"pricing_model\": \"free\" | \"freemium\" | \"paid\" | \"not mentioned\"\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "07c09115-e9f8-4351-88a4-9815bcf535c7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        176
+      ],
+      "id": "60d082e6-8ff2-4e7d-a0e4-4315ac8d5844",
+      "name": "Google Gemini Chat Model"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        -64
+      ],
+      "id": "fbbcb454-f72d-42eb-ba64-51dcdddc2ae8",
+      "name": "When chat message received"
+    },
+    {
+      "parameters": {
+        "url": "=[https://r.jina.ai/](https://r.jina.ai/){{ $json.chatInput || $json.body.company_url || ''}}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        64,
+        0
+      ],
+      "id": "da9f9732-995a-4d84-8597-6610d99e123f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = $json.text || $json.response || $json.output;\n\n// Strip any accidental markdown formatting or backticks\ntext = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\ntry {\n  return JSON.parse(text);\n} catch (error) {\n  return {\n    error: \"Failed to parse JSON\",\n    raw_response: text\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        0
+      ],
+      "id": "645d8fdb-bfc8-41e8-a357-7aa1681831bb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "570c93aa-a979-4342-b3a9-1964c0b3313d",
+              "leftValue": "={{ $json['Pricing Model'] }}",
+              "rightValue": "free",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        0
+      ],
+      "id": "1190aba3-d6c3-485b-b23c-708394ace57d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🚨 *Competitor Alert: {{ $('Edited').item.json.Company }}*\n📝 *Pitch:* {{ $('Edited').item.json.Pitch }}\n💰 *Model:* {{ $('Edited').item.json['Pricing Model'] }}\n📌 *Key Features:*\n{{ Array.isArray($('Edited').item.json['Key Features']) ? $('Edited').item.json['Key Features'].map(f => '• ' + f).join('\\n') : $('Edited').item.json['Key Features'] }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1088,
+        -64
+      ],
+      "id": "1c8c115e-760f-47e5-9a47-b6e8ba64a046",
+      "name": "Send a text message"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d2929dd9-1fbc-495e-825f-b3282cbbd8ea",
+              "name": "=Company",
+              "value": "={{ $json.company_or_site_name }}",
+              "type": "string"
+            },
+            {
+              "id": "b491e425-d8df-4d67-9856-45f4b531234f",
+              "name": "Pitch",
+              "value": "={{ $json.one_sentence_pitch }}",
+              "type": "string"
+            },
+            {
+              "id": "7d062ab4-6acf-4979-adbd-3bbffbc76f97",
+              "name": "=Key Features",
+              "value": "={{ $json.key_features_or_news }}",
+              "type": "array"
+            },
+            {
+              "id": "b1092293-734f-49a8-b7bb-0eedfc526cf3",
+              "name": "=Pricing Model",
+              "value": "={{ $json.pricing_model }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        704,
+        0
+      ],
+      "id": "596bffa5-4e81-4578-9784-9b1b5d053dae",
+      "name": "Edited"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-website-reviewer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        80
+      ],
+      "id": "4e0ef09f-9ce3-419a-90f7-65e34b1c8d29",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"enriched_lead\": {\n    \"name\": \"{{ $('Webhook').item.json.body.lead_name }}\",\n    \"company\": \"{{ $('Edited').item.json.Company }}\",\n    \"pricing_model\": \"{{ $('Edited').item.json['Pricing Model'] }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1328,
+        16
+      ],
+      "id": "4340534f-1c60-46e6-8957-37c1496a6318",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edited": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
